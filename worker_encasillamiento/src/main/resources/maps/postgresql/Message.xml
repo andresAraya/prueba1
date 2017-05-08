@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+
+<mapper namespace="cl.mineduc.worker_encasillamiento.mappers.ProcesoMapper">
+	
+	<resultMap type="cl.mineduc.worker_encasillamiento.modelo.InicioProce" id="workerProce">
+		<result property="iniProId" column="enin_id"/>
+		<result property="iniProEstado" column="enin_estado"/>
+	</resultMap>
+
+	<select id="getObtenerEstadoProcesoWorker" resultMap="workerProce">
+		SELECT 
+		    enin_id,
+		    enin_estado
+		FROM ranking_notificacion.enca_ini_proce
+	</select>
+	
+	
+	<resultMap type="cl.mineduc.worker_encasillamiento.modelo.InicioGrado" id="workerGrados">
+		<result property="iniGraId" column="eing_id"/>
+		<result property="iniGraGrado" column="eing_num_grado"/>
+		<result property="iniGraEstamento" column="eing_glosa_estam"/>
+		<result property="iniGraEstado" column="eing_activo"/>
+	</resultMap>
+	
+	<select id="getObtenerGradosParaProcesarWorker" resultMap="workerGrados">
+		SELECT 
+		    eing_id,
+		    eing_num_grado,
+		    eing_glosa_estam,
+		    eing_activo
+		FROM ranking_notificacion.enca_ini_grado
+		WHERE eing_activo = 1
+		ORDER BY eing_num_grado, eing_id
+	</select>
+	
+	<resultMap type="cl.mineduc.worker_encasillamiento.modelo.EstadosRanking" id="workerEstadosRanking">
+		<result property="idEstadoRanking" column="id_estado_rank"/>
+		<result property="idRanking" column="id_estado_localidad"/>
+		<result property="idEstamento" column="pe.id_estam"/>
+		<result property="totalEstadoRanking" column="total_est_rank"/>
+		<result property="cuposEstadoRanking" column="cupos_est_rank"/>
+		<result property="aceptadosEstadoRanking" column="tot_acep_est_rank"/>
+		<result property="rechazadosEstadoRanking" column="tot_rech_est_rank"/>
+		<result property="estadosRanking" column="estado_rank"/>
+		<result property="estadoRestantes" column="cupos_restantes"/>		
+	</resultMap>
+	
+	<select id="getObtenerRankingDeGradosSeleccionados" parameterType="java.util.List" resultMap="workerEstadosRanking">
+				SELECT 
+		            rner.id_estado_rank,
+		            rner.total_est_rank,
+		            rner.cupos_est_rank,
+		            rner.tot_acep_est_rank,
+		            rner.tot_rech_est_rank,
+		            rner.cupos_restantes,
+		            rner.estado_rank,
+		            rner.id_estado_localidad,
+		            pe.id_estam
+				FROM		    
+		            postulacion.estameto_grado peg
+				    LEFT JOIN postulacion.grado pg
+				    ON pg.id_grado = peg.id_grado_grado
+		
+				        LEFT JOIN postulacion.post_localidad_cupo_estamento_grado pplceg
+				        ON pplceg.id_estam_grado_estameto_grado = peg.id_estam_grado
+				
+				            LEFT JOIN postulacion.estamento pe
+				            ON pe.id_estam = peg.id_estam_estamento
+				                LEFT JOIN postulacion.localidades pl
+				                ON pl.id_local = pplceg.id_local_localidades
+		                            
+		                            LEFT JOIN ranking_notificacion.estados_ranking rner
+		                            ON rner.id_estado_localidad = pplceg.lceg_id_cupo
+				WHERE
+		            peg.id_estam_grado IN
+		            <foreach item="item" collection="list" open="(" separator="," close=")">
+		            	#{item.iniGraId}
+		            </foreach>
+		            AND pplceg.lceg_cupos &lt;&gt; 0 
+				    ORDER BY pe.id_estam ASC, pl.id_local ASC
+	</select>
+	
+	<select id="getObtenerRankingParaProcesoDeSeleccion" parameterType="cl.mineduc.worker_encasillamiento.modelo.EstadosRanking" resultType="cl.mineduc.worker_encasillamiento.modelo.Ranking">
+		SELECT 
+		    id_ranking AS idRanking,
+		    rank_orden AS orden,
+		    rank_puntaje AS puntaje,
+		    lceg_id_cupo_post_localidad_cupo_estamento_grado AS "cupos.idCupos",
+		    pers_id_persona AS "persona.idPersona",
+		    estado_rank AS estado,
+		    rank_fecha_notificacion AS fechaNotificacion,
+		    rank_fecha_vencimiento AS fechaVencimimento,
+		    rank_fecha_reiteracion AS fechaReiteracion
+		FROM ranking_notificacion.ranking
+		WHERE lceg_id_cupo_post_localidad_cupo_estamento_grado = #{idRanking}
+		AND estado_rank &lt;&gt; 3 AND estado_rank &lt;&gt; 2
+		ORDER BY rank_orden ASC
+		LIMIT #{estadoRestantes}
+	</select>
+	
+	<update id="getActualizarRankingEnProcesoDeSeleccion" parameterType="cl.mineduc.worker_encasillamiento.modelo.Ranking">
+		UPDATE ranking_notificacion.ranking
+			SET
+			<if test="estado != null">estado_rank = #{estado},</if>
+			<if test="fechaNotificacion != null">rank_fecha_notificacion = now(),</if>
+			<if test="fechaVencimimento != null">rank_fecha_vencimiento = now(),</if>
+			<if test="fechaReiteracion != null">rank_fecha_reiteracion = now(),</if>
+			rank_fecha_modificacion = now()
+		WHERE
+			id_ranking = #{idRanking}				
+	</update>
+	
+	<update id="getActualizarEstadosRankingEnProcesoDeSeleccion" parameterType="cl.mineduc.worker_encasillamiento.modelo.EstadosRanking"> 
+	
+	</update>
+	
+	
+	
+<!-- 	<sql id="messagesSQL"> -->
+<!-- 		SELECT message_id, message  -->
+<!-- 		FROM ejemplo_archetype.worker_messages -->
+<!-- 	</sql> -->	
+
+<!-- 	<insert id="insertMessage" parameterType="cl.mineduc.worker_encasillamiento.modelo.WorkerMessage"> -->
+<!-- 		<selectKey keyProperty="id" resultType="java.lang.Integer" order="BEFORE">  -->
+<!-- 			SELECT nextval('ejemplo_archetype.entidades_seq') -->
+<!-- 		</selectKey> -->
+<!-- 		INSERT INTO ejemplo_archetype.worker_messages(message_id, message)  -->
+<!-- 		VALUES (#{id}, #{message.message}); -->
+<!-- 	</insert> -->
+	
+</mapper>
+
