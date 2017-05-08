@@ -10,6 +10,7 @@ import org.springframework.web.servlet.ModelAndView;
 @RequestMapping("/")
 public class MainController {
 
+	//Esto es una prueba para la version de git con un nuevo cambio
 	@RequestMapping(value = "index", method = {RequestMethod.GET,RequestMethod.POST})
 	public ModelAndView index(@RequestParam(required = false) Integer error){
 		ModelAndView mv = new ModelAndView();
